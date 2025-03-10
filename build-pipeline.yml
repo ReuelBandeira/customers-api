@@ -1,0 +1,40 @@
+
+trigger:
+  branches:
+    include:
+      - develop
+
+pool:
+  name: 'Azure Pipelines'
+
+variables:
+- name: env_tag
+  value: 'dev'
+- name: env_filename
+  value: 'notification-backend.dev.env'
+
+
+steps:
+
+- task: DownloadSecureFile@1
+  name: secureFile
+  inputs:
+    secureFile: ${{ variables.env_filename }}
+- script: |
+    mv $(secureFile.secureFilePath) $(System.DefaultWorkingDirectory)/.env
+
+- script: |
+    docker build -t notification-backend:${{ variables.env_tag }} .
+  displayName: 'Docker Build'
+
+- script: |
+    mkdir -p $(Build.ArtifactStagingDirectory)
+    docker save notification-backend:${{ variables.env_tag }} \
+      -o $(Build.ArtifactStagingDirectory)/notification-backend_${{ variables.env_tag }}.tar
+  displayName: 'Save Docker image to .tar'
+
+- task: PublishBuildArtifacts@1
+  inputs:
+    PathtoPublish: '$(Build.ArtifactStagingDirectory)/notification-backend_${{ variables.env_tag }}.tar'
+    ArtifactName: 'notification-backend-${{ variables.env_tag }}'
+    publishLocation: 'Container'
