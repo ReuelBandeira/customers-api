@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace Api.Infra.Database.Migrations
 {
     /// <inheritdoc />
-    public partial class Initialv55511 : Migration
+    public partial class InitialvOrigin : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)

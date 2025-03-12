@@ -1,0 +1,61 @@
+# Dockerfile específico para migrações
+FROM mcr.microsoft.com/dotnet/sdk:8.0
+WORKDIR /app
+
+# Instala cliente MySQL
+RUN apt-get update && apt-get install -y default-mysql-client && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+# Copia apenas o necessário para migrações
+COPY *.sln ./
+COPY src/*.csproj ./src/
+COPY tests/*.csproj ./tests/
+RUN dotnet restore
+
+# Copia o código-fonte
+COPY . ./
+
+# Instala EF Core CLI
+RUN dotnet tool install --global dotnet-ef
+ENV PATH="$PATH:/root/.dotnet/tools"
+
+# Cria o script de migração
+RUN echo '#!/bin/bash' > /app/run-migrations.sh && \
+    echo 'set -e' >> /app/run-migrations.sh && \
+    echo 'echo "=== Iniciando processo de migrações ==="' >> /app/run-migrations.sh && \
+    echo '' >> /app/run-migrations.sh && \
+    echo '# Variáveis de ambiente do banco de dados' >> /app/run-migrations.sh && \
+    echo 'echo "Usando banco de dados: $MYSQL_DATABASE em $MYSQL_HOST"' >> /app/run-migrations.sh && \
+    echo '' >> /app/run-migrations.sh && \
+    echo '# Apagar banco de dados existente' >> /app/run-migrations.sh && \
+    echo 'echo "Apagando banco de dados existente..."' >> /app/run-migrations.sh && \
+    echo 'mysql -h $MYSQL_HOST -P $MYSQL_PORT -u $MYSQL_USERNAME -p$MYSQL_PASSWORD -e "DROP DATABASE IF EXISTS $MYSQL_DATABASE;"' >> /app/run-migrations.sh && \
+    echo 'echo "Criando banco de dados novo..."' >> /app/run-migrations.sh && \
+    echo 'mysql -h $MYSQL_HOST -P $MYSQL_PORT -u $MYSQL_USERNAME -p$MYSQL_PASSWORD -e "CREATE DATABASE $MYSQL_DATABASE;"' >> /app/run-migrations.sh && \
+    echo '' >> /app/run-migrations.sh && \
+    echo '# Diretório das migrações' >> /app/run-migrations.sh && \
+    echo 'MIGRATIONS_DIR="/app/src/Infra/Database/Migrations"' >> /app/run-migrations.sh && \
+    echo '' >> /app/run-migrations.sh && \
+    echo '# Limpar o diretório de migrações' >> /app/run-migrations.sh && \
+    echo 'if [ -d "$MIGRATIONS_DIR" ]; then' >> /app/run-migrations.sh && \
+    echo '    echo "Limpando pasta de migrações..."' >> /app/run-migrations.sh && \
+    echo '    rm -rf $MIGRATIONS_DIR/*' >> /app/run-migrations.sh && \
+    echo 'else' >> /app/run-migrations.sh && \
+    echo '    echo "Criando pasta de migrações..."' >> /app/run-migrations.sh && \
+    echo '    mkdir -p $MIGRATIONS_DIR' >> /app/run-migrations.sh && \
+    echo 'fi' >> /app/run-migrations.sh && \
+    echo '' >> /app/run-migrations.sh && \
+    echo '# Criar nova migração' >> /app/run-migrations.sh && \
+    echo 'echo "Criando nova migração..."' >> /app/run-migrations.sh && \
+    echo 'dotnet ef migrations add InitialV77777j --project /app/src/Api.csproj --output-dir $MIGRATIONS_DIR' >> /app/run-migrations.sh && \
+    echo '' >> /app/run-migrations.sh && \
+    echo '# Aplicar migração' >> /app/run-migrations.sh && \
+    echo 'echo "Aplicando migrações ao banco de dados..."' >> /app/run-migrations.sh && \
+    echo 'dotnet ef database update --project /app/src/Api.csproj' >> /app/run-migrations.sh && \
+    echo '' >> /app/run-migrations.sh && \
+    echo 'echo "=== Migrações concluídas com sucesso ==="' >> /app/run-migrations.sh && \
+    chmod +x /app/run-migrations.sh
+
+# Define o ponto de entrada
+ENTRYPOINT ["/app/run-migrations.sh"]

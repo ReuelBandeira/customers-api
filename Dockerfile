@@ -1,35 +1,26 @@
 # Etapa de build
-FROM mcr.microsoft.com/dotnet/sdk:8.0@sha256:032381bcea86fa0a408af5df63a930f1ff5b03116c940a7cd744d3b648e66749 \
-    AS build-stage
-
+FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build-stage
 WORKDIR /app
 
-# Copia o arquivo da solução/projetos
+# Copia apenas os arquivos de projeto primeiro para melhor uso de cache
 COPY *.sln ./
 COPY src/*.csproj ./src/
 COPY tests/*.csproj ./tests/
 
-# Restaura as dependências
-RUN dotnet restore && \
-    # Instala o dotnet-sonarscanner para integrar o projeto com o SonarQube
-    dotnet tool install --global dotnet-sonarscanner && \
-    # Instala o dotnet-ef para executar as migrations automaticamente na execução
-    dotnet tool install --global dotnet-ef
+# Restaura dependências (etapa em cache se os projetos não mudarem)
+RUN dotnet restore
 
-# Adiciona o dotnet tools ao PATH
-ENV PATH="$PATH:/root/.dotnet/tools"
-
-# Copia o restante dos arquivos e publica a aplicação
+# Copia e publica
 COPY . ./
 WORKDIR /app/src
 RUN dotnet publish -c Release -o /app/out
 
-# Etapa de produção
-FROM mcr.microsoft.com/dotnet/aspnet:8.0@sha256:04f79dd7f0a27eb079c2498ca9bab729ed40b91ed393d24846d6cb505f3fe646 \
-    AS production-stage
-
+# Etapa de runtime
+FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
 WORKDIR /app
+
+# Copia apenas os binários publicados
 COPY --from=build-stage /app/out .
 
-# Executa as migrations antes de iniciar a aplicação
+# Configurar o ponto de entrada
 ENTRYPOINT ["dotnet", "Api.dll"]
