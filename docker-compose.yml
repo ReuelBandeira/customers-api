@@ -58,11 +58,5 @@ services:
         environment:
             - ASPNETCORE_ENVIRONMENT=$ASPNETCORE_ENV
             - ConnectionStrings__IredeMulti=server=$MYSQL_HOST;port=$MYSQL_PORT;user=$MYSQL_USERNAME;password=$MYSQL_PASSWORD;database=$MYSQL_DATABASE;
-            - MinIOConnection__Endpoint=$MINIO_HOST:9000
-            - MINIO_HOST=$MINIO_HOST
-            - MINIO_DOMAIN=$MINIO_DOMAIN
-            - MinIOConnection__AccessKey=${MINIO_ROOT_USER}
-            - MinIOConnection__SecretKey=${MINIO_ROOT_PASSWORD}
-
 volumes:
     mysql-data:
